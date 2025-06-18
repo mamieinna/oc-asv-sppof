@@ -52,10 +52,20 @@ class ASVspoof2019(Dataset):
                 feat_mat = pickle.load(feature_handle)
         except:
             # add this exception statement since we may change the data split
+            # def the_other(train_or_dev):
+            #     assert train_or_dev in ["train", "dev"]
+            #     res = "dev" if train_or_dev == "train" else "train"
+            #     return res
             def the_other(train_or_dev):
-                assert train_or_dev in ["train", "dev"]
-                res = "dev" if train_or_dev == "train" else "train"
-                return res
+                if train_or_dev == "train":
+                    return "dev"
+                elif train_or_dev == "dev":
+                    return "train"
+                elif train_or_dev == "eval":
+                    return "train"  # or "dev", depending on your protocol setup
+                else:
+                    raise ValueError(f"Invalid part: {train_or_dev}")
+
             with open(os.path.join(self.path_to_features, the_other(self.part)) + '/'+ filename + self.feature + '.pkl', 'rb') as feature_handle:
                 feat_mat = pickle.load(feature_handle)
 
@@ -91,6 +101,6 @@ def repeat_padding(spec, ref_len):
 
 if __name__ == "__main__":
     # path_to_database = '/data/neil/DS_10283_3336/'  # if run on GPU
-    path_to_features = '/dataNVME/neil/ASVspoof2019Features/'  # if run on GPU
-    path_to_protocol = '/data/neil/DS_10283_3336/LA/ASVspoof2019_LA_cm_protocols/'
+    path_to_features = 'ASVspoof19/anti-spoofing/ASVspoof2019/LA/Features'  # if run on GPU
+    path_to_protocol = 'ASVspoof2019/LA/ASVspoof2019_LA_cm_protocols/'
 
