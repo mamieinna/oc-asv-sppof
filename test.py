@@ -10,18 +10,38 @@ from tqdm import tqdm
 import eval_metrics as em
 import numpy as np
 
+from loss import AMSoftmax, OCSoftmax
+from resnet import ResNet
+
 def test_model(feat_model_path, loss_model_path, part, add_loss, device):
+
     dirname = os.path.dirname
     basename = os.path.splitext(os.path.basename(feat_model_path))[0]
     if "checkpoint" in dirname(feat_model_path):
         dir_path = dirname(dirname(feat_model_path))
     else:
         dir_path = dirname(feat_model_path)
-    model = torch.load(feat_model_path, map_location="cuda")
+    # torch.serialization.add_safe_globals({'resnet.ResNet': ResNet})
+    # model = torch.load(feat_model_path, map_location="cuda",weights_only=False)
+    # model = model.to(device)
+    # loss_model = torch.load(loss_model_path) if add_loss != "softmax" else None
+    torch.serialization.add_safe_globals([ResNet, OCSoftmax, AMSoftmax])
+
+    model = torch.load(feat_model_path, map_location="cuda",weights_only=False)
     model = model.to(device)
-    loss_model = torch.load(loss_model_path) if add_loss != "softmax" else None
-    test_set = ASVspoof2019("LA", "/dataNVME/neil/ASVspoof2019LAFeatures/",
-                            "/data/neil/DS_10283_3336/LA/ASVspoof2019_LA_cm_protocols/", part,
+    loss_model = torch.load(loss_model_path, weights_only=False).to(device)
+
+    # Load loss model conditionally
+    # if add_loss == "ocsoftmax":
+    #     loss_model = OCSoftmax(256, r_real=0.9, r_fake=0.2, alpha=20).to(device)
+    #     loss_model.load_state_dict(torch.load(loss_model_path,weights_only=False))
+    # elif add_loss == "amsoftmax":
+    #     loss_model = AMSoftmax(2, 256, s=20, m=0.9).to(device)
+    #     loss_model.load_state_dict(torch.load(loss_model_path,weights_only=False))
+    # else:
+    #     loss_model = None
+    test_set = ASVspoof2019("LA", "ASVspoof19/anti-spoofing/ASVspoof2019/LA/Features",
+                            "ASVspoof19/LA/ASVspoof2019_LA_cm_protocols/", part,
                             "LFCC", feat_len=750, padding="repeat")
     testDataLoader = DataLoader(test_set, batch_size=32, shuffle=False, num_workers=0,
                                 collate_fn=test_set.collate_fn)
@@ -50,7 +70,7 @@ def test_model(feat_model_path, loss_model_path, part, add_loss, device):
                                           score[j].item()))
 
     eer_cm, min_tDCF = compute_eer_and_tdcf(os.path.join(dir_path, 'checkpoint_cm_score.txt'),
-                                            "/data/neil/DS_10283_3336/")
+                                            "ASVspoof19")
     return eer_cm, min_tDCF
 
 def test(model_dir, add_loss, device):
@@ -59,7 +79,7 @@ def test(model_dir, add_loss, device):
     test_model(model_path, loss_model_path, "eval", add_loss, device)
 
 def test_individual_attacks(cm_score_file):
-    asv_score_file = os.path.join('/data/neil/DS_10283_3336',
+    asv_score_file = os.path.join('ASVspoof19/',
                                   'LA/ASVspoof2019_LA_asv_scores/ASVspoof2019.LA.asv.eval.gi.trl.scores.txt')
 
     # Fix tandem detection cost function (t-DCF) parameters
@@ -78,14 +98,14 @@ def test_individual_attacks(cm_score_file):
     asv_data = np.genfromtxt(asv_score_file, dtype=str)
     asv_sources = asv_data[:, 0]
     asv_keys = asv_data[:, 1]
-    asv_scores = asv_data[:, 2].astype(np.float)
+    asv_scores = asv_data[:, 2].astype(np.float64)
 
     # Load CM scores
     cm_data = np.genfromtxt(cm_score_file, dtype=str)
     cm_utt_id = cm_data[:, 0]
     cm_sources = cm_data[:, 1]
     cm_keys = cm_data[:, 2]
-    cm_scores = cm_data[:, 3].astype(np.float)
+    cm_scores = cm_data[:, 3].astype(np.float64)
 
     other_cm_scores = -cm_scores
 
@@ -139,6 +159,6 @@ if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
     args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     test(args.model_dir, args.loss, args.device)
-    # eer_cm_lst, min_tDCF_lst = test_individual_attacks(os.path.join(args.model_dir, 'checkpoint_cm_score.txt'))
-    # print(eer_cm_lst)
-    # print(min_tDCF_lst)
+    eer_cm_lst, min_tDCF_lst = test_individual_attacks(os.path.join(args.model_dir, 'checkpoint_cm_score.txt'))
+    print(eer_cm_lst)
+    print(min_tDCF_lst)

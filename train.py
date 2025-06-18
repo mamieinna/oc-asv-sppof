@@ -18,11 +18,12 @@ def initParams():
     parser = argparse.ArgumentParser(description=__doc__)
 
     # Data folder prepare
+    
     parser.add_argument("-a", "--access_type", type=str, help="LA or PA", default='LA')
     parser.add_argument("-f", "--path_to_features", type=str, help="features path",
-                        default='/ASVspoof19/anti-spoofing/ASVspoof2019/LA/Features/')
+                        default='ASVspoof19/anti-spoofing/ASVspoof2019/LA/Features')
     parser.add_argument("-p", "--path_to_protocol", type=str, help="protocol path",
-                        default='/data/neil/DS_10283_3336/LA/ASVspoof2019_LA_cm_protocols/')
+                        default='ASVspoof19/LA/ASVspoof2019_LA_cm_protocols/')
     parser.add_argument("-o", "--out_fold", type=str, help="output folder", required=True, default='./models/try/')
 
     # Dataset prepare
@@ -78,7 +79,6 @@ def initParams():
         else:
             shutil.rmtree(os.path.join(args.out_fold, 'checkpoint'))
             os.mkdir(os.path.join(args.out_fold, 'checkpoint'))
-
         # Path for input data
         assert os.path.exists(args.path_to_features)
 
